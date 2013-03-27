@@ -8,8 +8,8 @@ Description
 Goals
 
 - simple interface, simple usage examples
-- single-threaded base, but possible to be used in multi-threaded enviroments
-- imperative and object-oriented version
+- single-threaded base, but the possibility to query servers concurrently using multiple threads
+- imperative and object-oriented variants
 
 ---
 
