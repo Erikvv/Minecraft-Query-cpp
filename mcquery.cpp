@@ -6,9 +6,9 @@
 #include <algorithm>    // std::equal
 
 // just to make stuff readable without polluting the global namespace too much
-using endpoint       = boost::asio::ip::udp::endpoint;
-using resolver       = boost::asio::ip::udp::resolver;
-using udp_socket     = boost::asio::ip::udp::socket;
+using endpoint   = boost::asio::ip::udp::endpoint;
+using resolver   = boost::asio::ip::udp::resolver;
+using udp_socket = boost::asio::ip::udp::socket;
 using boost::asio::deadline_timer;
 using boost::asio::io_service;
 using boost::asio::buffer;
@@ -23,6 +23,7 @@ using std::endl;
 using std::cout;
 using std::bind;
 using std::equal;
+using std::string;
 
 using uchar = unsigned char;
 using uint  = unsigned int;
@@ -31,8 +32,13 @@ using uint  = unsigned int;
  *  declarations  *
  ******************/
 struct mcData {
-
-
+    string motd;
+    string gametype;
+    string map;
+    string numplayers;  // int seems better, but this is how we recieve it
+    string maxplayers;  // and we want to prevent the caller from having to converting it back to string
+    short hostport;
+    string hostip;
 };
 
 struct mcQuery {
@@ -51,12 +57,9 @@ private:
     resolver Resolver;
     resolver::query Query;
     endpoint Endpoint;
+
     array<uchar,100> recvBuffer;
-    
-    
-
-
-
+    mcData data;
 };
 
 /******************
@@ -133,15 +136,60 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
     if(error) return;   // recieve failed
     cout<< "received " << nBytes << " bytes" << endl;
     
-    
-    
-    
     const array<uchar,5> expected = { 0x00, 0x01, 0x02, 0x03, 0x04 };
     if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
         throw runtime_error("Incorrect response from server when recieving data");
 
-    for(char e : recvBuffer)
-        cout<< e;
+    // extract data from payload
+    auto i = recvBuffer.begin() + 5;
+    auto end = recvBuffer.end();
+    
+    while( i<end && *i!='\0') {
+        data.motd.append(1,*i);
+        i++;
+    }
+    
+    i++;
+    while( i<end && *i!='\0') {
+        data.gametype.append(1,*i);
+        i++;
+    }
+
+    i++;
+    while( i<end && *i!='\0') {
+        data.map.append(1,*i);
+        i++;
+    }
+
+    i++;
+    while( i<end && *i!='\0') {
+        data.numplayers.append(1,*i);
+        i++;
+    }
+    i++;
+
+    while( i<end && *i!='\0') {
+        data.maxplayers.append(1,*i);
+        i++;
+    }
+
+    i++;
+    if( i+1 < end )
+        data.hostport = *reinterpret_cast<short*>(i);
+
+    i += 2;
+    while( i<end && *i!='\0') {
+        data.hostip.append(1,*i);
+        i++;
+    }
+    
+    cout<< "data.motd:       " << data.motd << endl;
+    cout<< "data.gametype:   " << data.gametype << endl;
+    cout<< "data.map:        " << data.map << endl;
+    cout<< "data.numplayers: " << data.numplayers << endl;
+    cout<< "data.maxplayers: " << data.maxplayers << endl;
+    cout<< "data.hostport:   " << data.hostport << endl;
+    cout<< "data.hostip:     " << data.hostip << endl;
 }
 
 int main() { 
