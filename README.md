@@ -1,6 +1,6 @@
 Description
 
-- building blocks for a program to query Minecraft servers
+- building blocks to query Minecraft servers
 - using C++ and the boost::asio library
 
 ---
@@ -8,7 +8,7 @@ Description
 Goals
 
 - simple interface, simple usage examples
-- single-threaded base, but the possibility to query servers concurrently using multiple threads
+- single-threaded base, but the possibility to query servers concurrently.
 - imperative and object-oriented variants
 
 ---
@@ -20,4 +20,4 @@ Protocal support
 3. the full stat of this protocol
 4. the [ForgeEssentials snooper](http://github.com/ForgeEssentials/ForgeEssentialsMain/wiki/Snooper-Info)
 
-The first priority is to support the basic UDP protocol and provide documentation with it
+The basic UDP stat is working, see example_main.cpp.
