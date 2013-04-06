@@ -4,67 +4,30 @@
 #include <array>
 #include <functional>   // for bind
 #include <algorithm>    // std::equal
+#include "mcquery.hpp"
 
-// just to make stuff readable without polluting the global namespace too much
-using endpoint   = boost::asio::ip::udp::endpoint;
-using resolver   = boost::asio::ip::udp::resolver;
-using udp_socket = boost::asio::ip::udp::socket;
-using boost::asio::deadline_timer;
-using boost::asio::io_service;
-using boost::asio::buffer;
+using namespace boost::asio::ip;
+using namespace boost::asio;
+using namespace std::placeholders;
+using namespace std;
+
 using boost::posix_time::seconds;
 using boost::system::error_code;
 
-using namespace std::placeholders;
-using std::exception;
-using std::runtime_error;
-using std::array;
-using std::endl;
-using std::cout;
-using std::bind;
-using std::equal;
-using std::string;
+using endpoint   = udp::endpoint;
+using resolver   = udp::resolver;
+using udp_socket = udp::socket;
 
 using uchar = unsigned char;
 using uint  = unsigned int;
 
 /******************
- *  declarations  *
- ******************/
-struct mcData {
-    string motd;
-    string gametype;
-    string map;
-    string numplayers;  // int seems better, but this is how we recieve it
-    string maxplayers;  // and we want to prevent the caller from having to converting it back to string
-    short hostport;
-    string hostip;
-};
-
-struct mcQuery {
-    mcQuery(const char* host = "localhost", 
-            const char* port = "25565", 
-            const int timeoutsecs = 5);
-
-    mcData get();
-    void challengeReceiver(const error_code& error, size_t nBytes);
-    void dataReceiver(const error_code& error, size_t nBytes);
-
-private:
-    io_service ioService;
-    deadline_timer t;
-    udp_socket Socket;
-    resolver Resolver;
-    resolver::query Query;
-    endpoint Endpoint;
-
-    array<uchar,100> recvBuffer;
-    mcData data;
-};
-
-/******************
  *  definitions   *
  ******************/
+void log(string msg) {
+    cout<< msg << endl;
+}
+
 mcQuery::mcQuery(const char* host /* = "localhost" */, 
                  const char* port /* = "25565" */, 
                  const int timeoutsecs /* = 5 */) 
@@ -83,7 +46,7 @@ mcData mcQuery::get() {
     uchar req[] =  { 0xFE, 0xFD, 0x09,  0x01, 0x02, 0x03, 0x04 };
     cout<< "sending..." << endl;
     size_t len = Socket.send_to(buffer(req), Endpoint);  // connectionless UDP: doesn't need to be async
-    cout<< "sent " << len << " bytes" << endl;
+    log("sent " + to_string(len) + " bytes");
 
     t.async_wait(
         [&](const boost::system::error_code& e) {
@@ -100,7 +63,6 @@ mcData mcQuery::get() {
         cout<< e.what();
     }
 
-    mcData data;
     return data;
 }
 
@@ -182,18 +144,8 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
         data.hostip.append(1,*i);
         i++;
     }
-    
-    cout<< "data.motd:       " << data.motd << endl;
-    cout<< "data.gametype:   " << data.gametype << endl;
-    cout<< "data.map:        " << data.map << endl;
-    cout<< "data.numplayers: " << data.numplayers << endl;
-    cout<< "data.maxplayers: " << data.maxplayers << endl;
-    cout<< "data.hostport:   " << data.hostport << endl;
-    cout<< "data.hostip:     " << data.hostip << endl;
+
+    data.succes = true;
 }
 
-int main() { 
-    mcQuery q;
-    q.get();
 
-}
