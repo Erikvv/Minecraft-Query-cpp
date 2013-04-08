@@ -6,7 +6,7 @@ using namespace std;
 
 int main() { 
     mcQuery q;
-    auto data = q.get();
+    auto data = q.get("localhost");
     
     if(data.succes) {
         cout<< "data.motd:       " << data.motd << endl;
