@@ -5,8 +5,8 @@
 using namespace std;
 
 int main() { 
-    mcQuery q;
-    auto data = q.get("localhost");
+    mcQuery q("localhost");
+    auto data = q.get();
     
     if(data.succes) {
         cout<< "data.motd:       " << data.motd << endl;

@@ -1,5 +1,3 @@
-// Compiles on my debian system with:
-// g++ mcquery.cpp -o mcquery.run -lboost_system -pthread -lboost_thread -std=c++11
 #include <boost/asio.hpp>
 #include <array>
 #include <functional>   // for bind
