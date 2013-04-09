@@ -1,7 +1,8 @@
-#include <boost/asio.hpp>
-#include <array>
+//#include <boost/asio.hpp>
+//#include <array>
 #include <functional>   // for bind
 #include <algorithm>    // std::equal
+#include <sstream>
 #include "mcquery.hpp"
 
 using namespace boost::asio::ip;
@@ -34,7 +35,7 @@ mcQuery::mcQuery(const char* host /* = "localhost" */,
       Resolver {ioService},
       Socket {ioService},
       Query {boost::asio::ip::udp::v4(), host, port},
-      Endpoint {*Resolver.resolve(Query)}
+      Endpoint {*Resolver.resolve(Query)}   // TODO: async
 { }
 
 mcData mcQuery::get() {
@@ -100,50 +101,16 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
     if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
         throw runtime_error("Incorrect response from server when recieving data");
 
-    // extract data from payload
-    auto i = recvBuffer.begin() + 5;
-    auto end = recvBuffer.end();
-    
-    while( i<end && *i!='\0') {
-        data.motd.append(1,*i);
-        i++;
-    }
-    
-    i++;
-    while( i<end && *i!='\0') {
-        data.gametype.append(1,*i);
-        i++;
-    }
+    istringstream iss;
+    iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size());
 
-    i++;
-    while( i<end && *i!='\0') {
-        data.map.append(1,*i);
-        i++;
-    }
-
-    i++;
-    while( i<end && *i!='\0') {
-        data.numplayers.append(1,*i);
-        i++;
-    }
-    i++;
-
-    while( i<end && *i!='\0') {
-        data.maxplayers.append(1,*i);
-        i++;
-    }
-
-    i++;
-    if( i+1 < end )
-        data.hostport = *reinterpret_cast<short*>(i);
-
-    i += 2;
-    while( i<end && *i!='\0') {
-        data.hostip.append(1,*i);
-        i++;
-    }
+    getline(iss, data.motd, '\0');
+    getline(iss, data.gametype, '\0');
+    getline(iss, data.map, '\0');
+    getline(iss, data.numplayers, '\0');
+    getline(iss, data.maxplayers, '\0');
+    iss.readsome(reinterpret_cast<char*>(&data.hostport), sizeof(data.hostport));
+    getline(iss, data.hostip, '\0');
 
     data.succes = true;
 }
-
-
