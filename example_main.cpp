@@ -5,7 +5,7 @@
 using namespace std;
 
 int main() { 
-    mcQuery q("localhost");
+    mcQueryFull q("localhost");
     auto data = q.get();
     
     if(data.succes) {

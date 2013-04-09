@@ -29,16 +29,35 @@ void log(string msg) {
 
 mcQuery::mcQuery(const char* host /* = "localhost" */, 
                  const char* port /* = "25565" */, 
-                 const int timeoutsecs /* = 5 */) 
+                 const int timeoutsecs /* = 5 */)
     : ioService {}, 
       t {ioService, seconds{timeoutsecs}},
       Resolver {ioService},
       Socket {ioService},
-      Query {boost::asio::ip::udp::v4(), host, port},
+      Query {host, port},
       Endpoint {*Resolver.resolve(Query)}   // TODO: async
-{ }
+{  }
+mcQuery::~mcQuery() {
+    delete data;
+}
 
-mcData mcQuery::get() {
+mcQueryBasic::mcQueryBasic(const char* host, 
+                 const char* port, 
+                 const int timeoutsecs)
+    : mcQuery(host, port, timeoutsecs)
+{ 
+    data = new mcDataBasic;
+}
+
+mcQueryFull::mcQueryFull(const char* host, 
+                 const char* port, 
+                 const int timeoutsecs)
+    : mcQuery(host, port, timeoutsecs)
+{ 
+    data = new mcDataFull;
+}      
+
+mcDataBasic mcQuery::get() {
     Socket.connect(Endpoint);
       // request for challenge token
       //             [-magic--]  [type] [----session id------]
@@ -62,7 +81,7 @@ mcData mcQuery::get() {
         cout<< e.what();
     }
 
-    return data;
+    return *data;
 }
 
 void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
@@ -76,15 +95,17 @@ void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
         throw runtime_error("Incorrect response from server when recieving data");
 
     // byte 5 onwards is the challange token: a null-terminated ASCII number string which should be sent back as a 32-bit integer
-    uint challtoken = atoi((char*)&recvBuffer[5]);  // unsafe?
+    uint challtoken = atoi((char*)&recvBuffer[5]); 
     
     // the actual request
     //                      [-magic--]  [type] [----session id------]
-    array<uchar,11> req = { 0xFE, 0xFD, 0x00,  0x01, 0x02, 0x03, 0x04 };
-    req[10] = challtoken>>0  & 0xFF;
-    req[9]  = challtoken>>8  & 0xFF;
-    req[8]  = challtoken>>16 & 0xFF;
-    req[7]  = challtoken>>24 & 0xFF;
+    vector<uchar> req { 0xFE, 0xFD, 0x00,  0x01, 0x02, 0x03, 0x04,
+        static_cast<uchar>(challtoken>>24 & 0xFF),
+        static_cast<uchar>(challtoken>>16 & 0xFF),
+        static_cast<uchar>(challtoken>>8  & 0xFF),
+        static_cast<uchar>(challtoken>>0  & 0xFF)
+    };
+    appendzeroes(req);     // virtual function call: appends four null bytes for the full stat
     
     cout<< "sending actual request" << endl;
     Socket.send_to(buffer(req), Endpoint);    
@@ -101,16 +122,30 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
     if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
         throw runtime_error("Incorrect response from server when recieving data");
 
+    // tokenize answer into mcData struct
     istringstream iss;
     iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size());
+    for( auto p : recvBuffer )
+        cout<<p;
 
-    getline(iss, data.motd, '\0');
-    getline(iss, data.gametype, '\0');
-    getline(iss, data.map, '\0');
-    getline(iss, data.numplayers, '\0');
-    getline(iss, data.maxplayers, '\0');
-    iss.readsome(reinterpret_cast<char*>(&data.hostport), sizeof(data.hostport));
-    getline(iss, data.hostip, '\0');
+    getline(iss, data->motd, '\0');
+    getline(iss, data->gametype, '\0');
+    getline(iss, data->map, '\0');
+    getline(iss, data->numplayers, '\0');
+    getline(iss, data->maxplayers, '\0');
+    iss.readsome(reinterpret_cast<char*>(&data->hostport), sizeof(data->hostport));
+    getline(iss, data->hostip, '\0');
 
-    data.succes = true;
+    data->succes = true;
+}
+
+void mcQuery::appendzeroes(std::vector<unsigned char>& req) {
+    // do nothing
+}
+
+void mcQueryFull::appendzeroes(std::vector<unsigned char>& req) {
+    req.push_back( 0x00 );
+    req.push_back( 0x00 );
+    req.push_back( 0x00 );
+    req.push_back( 0x00 );
 }
