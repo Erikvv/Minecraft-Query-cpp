@@ -19,8 +19,8 @@ struct mcDataFull : mcDataBasic {
     std::string& hostname = motd;   // same thing different name
     std::string game_id;
     std::string version;
-    std::string plugins;     // I think only used by bukkit: may need to become a vector of strings
-    std::vector<std::array<char,17>> players;
+    std::string plugins;     // only used by bukkit: may need to become a vector of strings
+    std::vector<std::array<char,17>> playernames;
 };
 
 struct mcQuery {

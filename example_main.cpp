@@ -44,14 +44,14 @@ int main(int argc, char *argv[]) {
         cout<< "gametype:   " << fData.gametype << endl;
         cout<< "game_id:    " << fData.game_id << endl;
         cout<< "version:    " << fData.version << endl;
-        cout<< "plugins:    " << fData.plugins << endl;
+        cout<< "plugins:    " << fData.plugins << endl; // only used by bukkit
         cout<< "map:        " << fData.map << endl;
         cout<< "numplayers: " << fData.numplayers << endl;
         cout<< "maxplayers: " << fData.maxplayers << endl;
         cout<< "hostport:   " << fData.hostport << endl;
         cout<< "hostip:     " << fData.hostip << endl;
-        cout<< "players:    " << endl;
-        for( auto str : fData.players )
+        cout<< "playernames:" << endl;
+        for( auto str : fData.playernames )
             cout<< "    " << &str[0] << endl;
     }
     else cout<< "no response from server" << endl;

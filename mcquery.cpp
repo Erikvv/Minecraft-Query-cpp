@@ -2,7 +2,10 @@
 //#include <array>
 #include <functional>   // for bind
 #include <algorithm>    // std::equal
+#include <ostream>
+#include <streambuf>
 #include "mcquery.hpp"
+
 
 using namespace boost::asio::ip;
 using namespace boost::asio;
@@ -19,13 +22,17 @@ using udp_socket = udp::socket;
 using uchar = unsigned char;
 using uint  = unsigned int;
 
+
+
+struct logbuf : std::streambuf {
+
+} mylogbuf;
+
+ostream debuglog(&mylogbuf);
+
 /******************
  *  definitions   *
  ******************/
-void log(string msg) {
-    cout<< msg << endl;
-}
-
 mcQuery::mcQuery(const char* host /* = "localhost" */, 
                  const char* port /* = "25565" */, 
                  const int timeoutsecs /* = 5 */)
@@ -38,7 +45,7 @@ mcQuery::mcQuery(const char* host /* = "localhost" */,
       data(nullptr),
       timeout{timeoutsecs}
 {  
-    
+    debuglog <<"constructing";
 }
 mcQuery::~mcQuery() {
     delete data;
@@ -64,33 +71,31 @@ void mcQuery::connect() {
       // request for challenge token
       //             [-magic--]  [type] [----session id------]
     uchar req[] =  { 0xFE, 0xFD, 0x09,  0x01, 0x02, 0x03, 0x04 };
-    cout<< "sending..." << endl;
+    debuglog<< "sending..." << endl;
     size_t len = Socket.send_to(buffer(req), Endpoint);  // connectionless UDP: doesn't need to be async
-    log("sent " + to_string(len) + " bytes");
+    debuglog<< "sent " << len << " bytes";
 
     t.expires_from_now(seconds(timeout));
     t.async_wait(
         [&](const boost::system::error_code& e) {
-            if(e) {
-                return;
-            }
-            cout<< "timed out: closing socket"<< endl;
+            if(e) return;
+            debuglog<< "timed out: closing socket"<< endl;
             Socket.cancel(); // causes event handlers to be called with error code 125 (asio::error::operation_aborted)
         } );
     
-    cout<< "preparing recieve buffer" << endl;
+    debuglog<< "preparing recieve buffer" << endl;
     Socket.async_receive_from(buffer(recvBuffer), Endpoint, 
         bind(&mcQuery::challengeReceiver, this, _1, _2));
 
     ioService.reset();
     try { ioService.run(); } catch(exception& e) {
-        cout<< "Exception caught from ioService: " << e.what() << endl;
+        debuglog<< "Exception caught from ioService: " << e.what() << endl;
     }
 }
 
 void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
     if(error) return;   // recieve failed, probably cancelled by timer
-    cout<< "received " << nBytes << " bytes" << endl;
+    debuglog<< "received " << nBytes << " bytes" << endl;
     // byte 0 is 0x09
     // byte 1 to 4 is the session id (last 4 bytes of the request we sent xor'ed with 0F0F0F0F).
     // These bytes don't hold usefull info, but we check if they are correct anyways
@@ -116,7 +121,7 @@ void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
         req.push_back(0x00);
     }
     
-    cout<< "sending actual request" << endl;
+    debuglog<< "sending actual request" << endl;
     Socket.send_to(buffer(req), Endpoint);    
     Socket.async_receive_from(buffer(recvBuffer), Endpoint, bind(&mcQuery::dataReceiver, this, _1, _2));
 
@@ -125,7 +130,7 @@ void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
 void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes) {
     t.cancel(); // causes event handler to be called with boost::asio::error::operation_aborted
     if(error) return;   // recieve failed
-    cout<< "received " << nBytes << " bytes" << endl;
+    debuglog<< "received " << nBytes << " bytes" << endl;
     
     const array<uchar,5> expected = { 0x00, 0x01, 0x02, 0x03, 0x04 };
     if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
@@ -217,14 +222,14 @@ void mcQuery::extractFull(istringstream& iss) {
     iss.ignore(2);
     getline(iss, temp, '\0');
     if( temp.compare("player_") )
-        throw runtime_error("Incorrect response from server, expected 'hostip'");
+        throw runtime_error("Incorrect response from server, expected 'player_'");
 
     iss.ignore(1);
     array<char,17> buf;
     while(1) {
         iss.getline(&buf[0], 17, '\0');
         if( strlen(&buf[0]) )
-            fdata->players.push_back(buf);
+            fdata->playernames.push_back(buf);
         else break;
     } 
 }
