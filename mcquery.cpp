@@ -2,7 +2,6 @@
 //#include <array>
 #include <functional>   // for bind
 #include <algorithm>    // std::equal
-#include <sstream>
 #include "mcquery.hpp"
 
 using namespace boost::asio::ip;
@@ -35,29 +34,29 @@ mcQuery::mcQuery(const char* host /* = "localhost" */,
       Resolver {ioService},
       Socket {ioService},
       Query {host, port},
-      Endpoint {*Resolver.resolve(Query)}   // TODO: async
+      Endpoint {*Resolver.resolve(Query)},   // TODO: async
+      data(nullptr)
 {  }
 mcQuery::~mcQuery() {
     delete data;
 }
 
-mcQueryBasic::mcQueryBasic(const char* host, 
-                 const char* port, 
-                 const int timeoutsecs)
-    : mcQuery(host, port, timeoutsecs)
-{ 
+mcDataBasic mcQuery::getBasic() {
+    fullreq = false;
     data = new mcDataBasic;
+    connect();
+
+    return move(*data);   // is move desirable/necessary here?
+}
+mcDataFull mcQuery::getFull() {
+    fullreq = true;
+    data = new mcDataFull;  // TODO: free previous content
+    connect();
+
+    return move(*dynamic_cast<mcDataFull*>(data));
 }
 
-mcQueryFull::mcQueryFull(const char* host, 
-                 const char* port, 
-                 const int timeoutsecs)
-    : mcQuery(host, port, timeoutsecs)
-{ 
-    data = new mcDataFull;
-}      
-
-mcDataBasic mcQuery::get() {
+void mcQuery::connect() {
     Socket.connect(Endpoint);
       // request for challenge token
       //             [-magic--]  [type] [----session id------]
@@ -80,8 +79,6 @@ mcDataBasic mcQuery::get() {
     try { ioService.run(); } catch(exception& e) {
         cout<< e.what();
     }
-
-    return *data;
 }
 
 void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
@@ -105,7 +102,12 @@ void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
         static_cast<uchar>(challtoken>>8  & 0xFF),
         static_cast<uchar>(challtoken>>0  & 0xFF)
     };
-    appendzeroes(req);     // virtual function call: appends four null bytes for the full stat
+    if(fullreq) {
+        req.push_back(0x00);
+        req.push_back(0x00);
+        req.push_back(0x00);
+        req.push_back(0x00);
+    }
     
     cout<< "sending actual request" << endl;
     Socket.send_to(buffer(req), Endpoint);    
@@ -125,9 +127,17 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
     // tokenize answer into mcData struct
     istringstream iss;
     iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size());
-    for( auto p : recvBuffer )
-        cout<<p;
 
+    extract(iss);
+    data->succes = true;
+}
+
+void mcQuery::extract(istringstream& iss) {
+    if( fullreq ) extractFull(iss);
+    else extractBasic(iss);
+}
+
+void mcQuery::extractBasic(istringstream& iss) {
     getline(iss, data->motd, '\0');
     getline(iss, data->gametype, '\0');
     getline(iss, data->map, '\0');
@@ -135,17 +145,81 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
     getline(iss, data->maxplayers, '\0');
     iss.readsome(reinterpret_cast<char*>(&data->hostport), sizeof(data->hostport));
     getline(iss, data->hostip, '\0');
+}
+void mcQuery::extractFull(istringstream& iss) {
+    mcDataFull* fdata = dynamic_cast<mcDataFull*>(data);
+    string temp;
 
-    data->succes = true;
+    getline(iss, temp, '\0');
+    if( temp.compare("splitnum") )
+        throw runtime_error("Incorrect response from server, expected 'splitnum'");
+
+    iss.ignore(2);
+    getline(iss, temp, '\0');
+    if( temp.compare("hostname") )
+        throw runtime_error("Incorrect response from server, expected 'hostname'");
+
+    getline(iss, fdata->motd, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("gametype") )
+        throw runtime_error("Incorrect response from server, expected 'gametype'");
+    getline(iss, fdata->gametype, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("game_id") )
+        throw runtime_error("Incorrect response from server, expected 'game_id'");
+    getline(iss, fdata->game_id, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("version") )
+        throw runtime_error("Incorrect response from server, expected 'version'");
+    getline(iss, fdata->version, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("plugins") )
+        throw runtime_error("Incorrect response from server, expected 'plugins'");
+    getline(iss, fdata->plugins, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("map") )
+        throw runtime_error("Incorrect response from server, expected 'map'");
+    getline(iss, fdata->map, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("numplayers") )
+        throw runtime_error("Incorrect response from server, expected 'numplayers'");
+    getline(iss, fdata->numplayers, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("maxplayers") )
+        throw runtime_error("Incorrect response from server, expected 'maxplayers'");
+    getline(iss, fdata->maxplayers, '\0');
+
+    getline(iss, temp, '\0');
+    if( temp.compare("hostport") )
+        throw runtime_error("Incorrect response from server, expected 'hostport'");
+    iss>> fdata->hostport;
+
+    iss.ignore(1);
+    getline(iss, temp, '\0');
+    if( temp.compare("hostip") )
+        throw runtime_error("Incorrect response from server, expected 'hostip'");
+    getline(iss, fdata->hostip, '\0');
+
+    iss.ignore(2);
+    getline(iss, temp, '\0');
+    if( temp.compare("player_") )
+        throw runtime_error("Incorrect response from server, expected 'hostip'");
+
+    iss.ignore(1);
+    array<char,17> buf;
+    while(1) {
+        iss.getline(&buf[0], 17, '\0');
+        if( strlen(&buf[0]) )
+            fdata->players.push_back(buf);
+        else break;
+    } 
 }
 
-void mcQuery::appendzeroes(std::vector<unsigned char>& req) {
-    // do nothing
-}
 
-void mcQueryFull::appendzeroes(std::vector<unsigned char>& req) {
-    req.push_back( 0x00 );
-    req.push_back( 0x00 );
-    req.push_back( 0x00 );
-    req.push_back( 0x00 );
-}

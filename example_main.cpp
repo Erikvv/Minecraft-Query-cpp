@@ -5,17 +5,37 @@
 using namespace std;
 
 int main() { 
-    mcQueryFull q("localhost");
-    auto data = q.get();
+    mcQuery q("localhost");
+    auto data = q.getBasic();
     
+    cout<< "basic query: " << endl;
     if(data.succes) {
-        cout<< "data.motd:       " << data.motd << endl;
-        cout<< "data.gametype:   " << data.gametype << endl;
-        cout<< "data.map:        " << data.map << endl;
-        cout<< "data.numplayers: " << data.numplayers << endl;
-        cout<< "data.maxplayers: " << data.maxplayers << endl;
-        cout<< "data.hostport:   " << data.hostport << endl;
-        cout<< "data.hostip:     " << data.hostip << endl;
+        cout<< "motd:       " << data.motd << endl;
+        cout<< "gametype:   " << data.gametype << endl;
+        cout<< "map:        " << data.map << endl;
+        cout<< "numplayers: " << data.numplayers << endl;
+        cout<< "maxplayers: " << data.maxplayers << endl;
+        cout<< "hostport:   " << data.hostport << endl;
+        cout<< "hostip:     " << data.hostip << endl;
     }
     else cout<< "no response from server" << endl;
+    
+    auto fData = q.getFull();
+    if(fData.succes) {
+        cout<< "motd:       " << fData.motd << endl;    // also accessable as data.hostname
+        cout<< "gametype:   " << fData.gametype << endl;
+        cout<< "game_id:    " << fData.game_id << endl;
+        cout<< "version:    " << fData.version << endl;
+        cout<< "plugins:    " << fData.plugins << endl;
+        cout<< "map:        " << fData.map << endl;
+        cout<< "numplayers: " << fData.numplayers << endl;
+        cout<< "maxplayers: " << fData.maxplayers << endl;
+        cout<< "hostport:   " << fData.hostport << endl;
+        cout<< "hostip:     " << fData.hostip << endl;
+        cout<< "players:    " << endl;
+        for( auto str : fData.players )
+            cout<< "    " << &str[0] << endl;
+    }
+    else cout<< "no response from server" << endl;
+
 }
