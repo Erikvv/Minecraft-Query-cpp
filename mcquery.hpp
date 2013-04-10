@@ -24,7 +24,7 @@ struct mcDataFull : mcDataBasic {
 };
 
 struct mcQuery {
-    mcQuery(const char* host = "localhost",     // TODO: move arguments away from constructor
+    mcQuery(const char* host = "localhost",     // move arguments away from constructor?
             const char* port = "25565", 
             const int timeoutsecs = 5);
 

@@ -24,11 +24,14 @@ using uint  = unsigned int;
 
 
 
-struct logbuf : std::streambuf {
-
-} mylogbuf;
-
-ostream debuglog(&mylogbuf);
+struct debuglog {
+    template<typename T>
+    debuglog& operator<< (T rhs) { 
+        //cout<< rhs;
+        return *this; 
+    }
+    
+} debug;
 
 /******************
  *  definitions   *
@@ -49,13 +52,13 @@ mcDataBasic mcQuery::getBasic() {
     fullreq = false;
     connect();
 
-    return static_cast<mcDataBasic>(data);   // is move desirable/necessary here?
+    return move(static_cast<mcDataBasic>(data));
 }
 mcDataFull mcQuery::getFull() {
     fullreq = true;
     connect();
 
-    return data;
+    return move(data);
 }
 
 void mcQuery::connect() {
@@ -63,31 +66,31 @@ void mcQuery::connect() {
       // request for challenge token
       //             [-magic--]  [type] [----session id------]
     uchar req[] =  { 0xFE, 0xFD, 0x09,  0x01, 0x02, 0x03, 0x04 };
-    debuglog<< "sending..." << endl;
+    debug<< "sending..." << '\n';
     size_t len = Socket.send_to(buffer(req), Endpoint);  // connectionless UDP: doesn't need to be async
-    debuglog<< "sent " << len << " bytes";
+    debug<< "sent " << len << " bytes" << '\n';
 
     t.expires_from_now(seconds(timeout));
     t.async_wait(
         [&](const boost::system::error_code& e) {
             if(e) return;
-            debuglog<< "timed out: closing socket"<< endl;
+            debug<< "timed out: closing socket" << '\n';
             Socket.cancel(); // causes event handlers to be called with error code 125 (asio::error::operation_aborted)
         } );
     
-    debuglog<< "preparing recieve buffer" << endl;
+    debug<< "preparing recieve buffer" << '\n';
     Socket.async_receive_from(buffer(recvBuffer), Endpoint, 
         bind(&mcQuery::challengeReceiver, this, _1, _2));
 
     ioService.reset();
     try { ioService.run(); } catch(exception& e) {
-        debuglog<< "Exception caught from ioService: " << e.what() << endl;
+        debug<< "Exception caught from ioService: " << e.what() << '\n';
     }
 }
 
 void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
     if(error) return;   // recieve failed, probably cancelled by timer
-    debuglog<< "received " << nBytes << " bytes" << endl;
+    debug<< "received " << nBytes << " bytes" << '\n';
     // byte 0 is 0x09
     // byte 1 to 4 is the session id (last 4 bytes of the request we sent xor'ed with 0F0F0F0F).
     // These bytes don't hold usefull info, but we check if they are correct anyways
@@ -113,16 +116,15 @@ void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
         req.push_back(0x00);
     }
     
-    debuglog<< "sending actual request" << endl;
+    debug<< "sending actual request" << '\n';
     Socket.send_to(buffer(req), Endpoint);    
     Socket.async_receive_from(buffer(recvBuffer), Endpoint, bind(&mcQuery::dataReceiver, this, _1, _2));
-
 }
 
 void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes) {
     t.cancel(); // causes event handler to be called with boost::asio::error::operation_aborted
     if(error) return;   // recieve failed
-    debuglog<< "received " << nBytes << " bytes" << endl;
+    debug<< "received " << nBytes << " bytes" << '\n';
     
     const array<uchar,5> expected = { 0x00, 0x01, 0x02, 0x03, 0x04 };
     if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
