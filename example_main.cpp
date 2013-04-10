@@ -5,7 +5,7 @@
 using namespace std;
 
 int main() { 
-    mcQuery q("localhost");
+    mcQuery q("localhost", "25565"); // def arguments optional
     auto data = q.getBasic();
     
     cout<< "basic query: " << endl;

@@ -30,13 +30,16 @@ mcQuery::mcQuery(const char* host /* = "localhost" */,
                  const char* port /* = "25565" */, 
                  const int timeoutsecs /* = 5 */)
     : ioService {}, 
-      t {ioService, seconds{timeoutsecs}},
+      t {ioService},
       Resolver {ioService},
       Socket {ioService},
       Query {host, port},
       Endpoint {*Resolver.resolve(Query)},   // TODO: async
-      data(nullptr)
-{  }
+      data(nullptr),
+      timeout{timeoutsecs}
+{  
+    
+}
 mcQuery::~mcQuery() {
     delete data;
 }
@@ -65,10 +68,13 @@ void mcQuery::connect() {
     size_t len = Socket.send_to(buffer(req), Endpoint);  // connectionless UDP: doesn't need to be async
     log("sent " + to_string(len) + " bytes");
 
+    t.expires_from_now(seconds(timeout));
     t.async_wait(
         [&](const boost::system::error_code& e) {
-            if(e) return;
-            cout<< "timed out: closing socket";
+            if(e) {
+                return;
+            }
+            cout<< "timed out: closing socket"<< endl;
             Socket.cancel(); // causes event handlers to be called with error code 125 (asio::error::operation_aborted)
         } );
     
@@ -76,8 +82,9 @@ void mcQuery::connect() {
     Socket.async_receive_from(buffer(recvBuffer), Endpoint, 
         bind(&mcQuery::challengeReceiver, this, _1, _2));
 
+    ioService.reset();
     try { ioService.run(); } catch(exception& e) {
-        cout<< e.what();
+        cout<< "Exception caught from ioService: " << e.what() << endl;
     }
 }
 

@@ -48,6 +48,7 @@ private:    // data
     boost::asio::ip::udp::socket Socket;
     boost::asio::ip::udp::endpoint Endpoint;
 
+    int timeout;    // TODO: better data type
     bool fullreq;
     std::array<unsigned char,500> recvBuffer;   // should look into making the buffer size variable, have to look in boost documentation
     mcDataBasic* data;
