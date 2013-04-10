@@ -1,5 +1,11 @@
-// compiles on gcc 4.7.2 with:
-// g++ mcquery.cpp example_main.cpp -o mcquery.run -lboost_system -pthread -lboost_thread -std=c++11
+/*********************************************
+ *  compiles on gcc 4.7.2 with:
+ *  g++ mcquery.cpp example_main.cpp -o mcquery.run -lboost_system -pthread -lboost_thread -std=c++11
+ *  
+ *  run as:
+ *  ./mcquery.run [host] [port] [timeoutsecs] 
+ **********************************************/
+
 #include "mcquery.hpp"
 
 using namespace std;
