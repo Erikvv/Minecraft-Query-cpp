@@ -4,9 +4,21 @@
 
 using namespace std;
 
-int main() { 
-    mcQuery q("localhost", "25565"); // def arguments optional
-    auto data = q.getBasic();
+int main(int argc, char *argv[]) { 
+    const char* hostname = "localhost";
+    const char* port = "25565";
+    int timeout = 5;
+    switch(argc){
+        case 4:
+            timeout = atoi(argv[3]);
+        case 3:
+            port = argv[2];
+        case 2:
+            hostname = argv[1];
+    }
+    
+    mcQuery q{hostname, port, timeout}; // constructor arguments are optional, defaults are above
+    auto data = q.getBasic(); 
     
     cout<< "basic query: " << endl;
     if(data.succes) {

@@ -9,7 +9,7 @@ struct mcDataBasic {    // needs polymorphic destructor. Do i need to write one 
     std::string map;
     std::string numplayers;  // int seems better, but this is how we recieve it from minecraft
     std::string maxplayers;
-    short hostport = 0;
+    unsigned short hostport = 0;
     std::string hostip;
 
     virtual void fake() {} // just so it becomes polymorphic
@@ -50,6 +50,6 @@ private:    // data
 
     int timeout;    // TODO: better data type
     bool fullreq;
-    std::array<unsigned char,500> recvBuffer;   // should look into making the buffer size variable, have to look in boost documentation
+    std::array<unsigned char,5000> recvBuffer;   // should look into making the buffer size variable, have to look in boost documentation
     mcDataBasic* data;
 };
