@@ -24,9 +24,9 @@ int main(int argc, char *argv[]) {
     }
     
     mcQuery q{hostname, port, timeout}; // constructor arguments are optional, defaults are above
-    auto data = q.getBasic(); 
-    
+
     cout<< "basic query: " << endl;
+    auto data = q.getBasic(); 
     if(data.succes) {
         cout<< "motd:       " << data.motd << endl;
         cout<< "gametype:   " << data.gametype << endl;
@@ -37,7 +37,9 @@ int main(int argc, char *argv[]) {
         cout<< "hostip:     " << data.hostip << endl;
     }
     else cout<< "no response from server" << endl;
+    cout<<endl;
     
+    cout<< "Full query: " << endl;
     auto fData = q.getFull();
     if(fData.succes) {
         cout<< "motd:       " << fData.motd << endl;    // also accessable as data.hostname
@@ -55,5 +57,7 @@ int main(int argc, char *argv[]) {
             cout<< "    " << &str[0] << endl;
     }
     else cout<< "no response from server" << endl;
+    cout<<endl;
 
+    return 0;
 }
