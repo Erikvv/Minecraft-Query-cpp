@@ -20,4 +20,4 @@ Protocal support
 3. the full stat of this protocol
 4. the [ForgeEssentials snooper](http://github.com/ForgeEssentials/ForgeEssentialsMain/wiki/Snooper-Info)
 
-The basic UDP stat is working, see example_main.cpp.
+The basic and full UDP stats are working, see example_main.cpp.
