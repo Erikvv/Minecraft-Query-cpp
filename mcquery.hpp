@@ -27,7 +27,6 @@ struct mcQuery {
     mcQuery(const char* host = "localhost",     // TODO: move arguments away from constructor
             const char* port = "25565", 
             const int timeoutsecs = 5);
-    ~mcQuery();
 
     mcDataBasic getBasic();
     mcDataFull getFull();
@@ -51,5 +50,5 @@ private:    // data
     int timeout;    // TODO: better data type
     bool fullreq;
     std::array<unsigned char,5000> recvBuffer;   // should look into making the buffer size variable, have to look in boost documentation
-    mcDataBasic* data;
+    mcDataFull data;
 };

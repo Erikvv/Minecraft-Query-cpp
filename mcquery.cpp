@@ -42,28 +42,20 @@ mcQuery::mcQuery(const char* host /* = "localhost" */,
       Socket {ioService},
       Query {host, port},
       Endpoint {*Resolver.resolve(Query)},   // TODO: async
-      data(nullptr),
       timeout{timeoutsecs}
-{  
-    debuglog <<"constructing";
-}
-mcQuery::~mcQuery() {
-    delete data;
-}
+{ }
 
 mcDataBasic mcQuery::getBasic() {
     fullreq = false;
-    data = new mcDataBasic;
     connect();
 
-    return move(*data);   // is move desirable/necessary here?
+    return static_cast<mcDataBasic>(data);   // is move desirable/necessary here?
 }
 mcDataFull mcQuery::getFull() {
     fullreq = true;
-    data = new mcDataFull;  // TODO: free previous content
     connect();
 
-    return move(*dynamic_cast<mcDataFull*>(data));
+    return data;
 }
 
 void mcQuery::connect() {
@@ -141,7 +133,7 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
     iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size());
 
     extract(iss);
-    data->succes = true;
+    data.succes = true;
 }
 
 void mcQuery::extract(istringstream& iss) {
@@ -150,16 +142,15 @@ void mcQuery::extract(istringstream& iss) {
 }
 
 void mcQuery::extractBasic(istringstream& iss) {
-    getline(iss, data->motd, '\0');
-    getline(iss, data->gametype, '\0');
-    getline(iss, data->map, '\0');
-    getline(iss, data->numplayers, '\0');
-    getline(iss, data->maxplayers, '\0');
-    iss.readsome(reinterpret_cast<char*>(&data->hostport), sizeof(data->hostport));
-    getline(iss, data->hostip, '\0');
+    getline(iss, data.motd, '\0');
+    getline(iss, data.gametype, '\0');
+    getline(iss, data.map, '\0');
+    getline(iss, data.numplayers, '\0');
+    getline(iss, data.maxplayers, '\0');
+    iss.readsome(reinterpret_cast<char*>(&data.hostport), sizeof(data.hostport));
+    getline(iss, data.hostip, '\0');
 }
 void mcQuery::extractFull(istringstream& iss) {
-    mcDataFull* fdata = dynamic_cast<mcDataFull*>(data);
     string temp;
 
     getline(iss, temp, '\0');
@@ -171,53 +162,53 @@ void mcQuery::extractFull(istringstream& iss) {
     if( temp.compare("hostname") )
         throw runtime_error("Incorrect response from server, expected 'hostname'");
 
-    getline(iss, fdata->motd, '\0');
+    getline(iss, data.motd, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("gametype") )
         throw runtime_error("Incorrect response from server, expected 'gametype'");
-    getline(iss, fdata->gametype, '\0');
+    getline(iss, data.gametype, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("game_id") )
         throw runtime_error("Incorrect response from server, expected 'game_id'");
-    getline(iss, fdata->game_id, '\0');
+    getline(iss, data.game_id, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("version") )
         throw runtime_error("Incorrect response from server, expected 'version'");
-    getline(iss, fdata->version, '\0');
+    getline(iss, data.version, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("plugins") )
         throw runtime_error("Incorrect response from server, expected 'plugins'");
-    getline(iss, fdata->plugins, '\0');
+    getline(iss, data.plugins, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("map") )
         throw runtime_error("Incorrect response from server, expected 'map'");
-    getline(iss, fdata->map, '\0');
+    getline(iss, data.map, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("numplayers") )
         throw runtime_error("Incorrect response from server, expected 'numplayers'");
-    getline(iss, fdata->numplayers, '\0');
+    getline(iss, data.numplayers, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("maxplayers") )
         throw runtime_error("Incorrect response from server, expected 'maxplayers'");
-    getline(iss, fdata->maxplayers, '\0');
+    getline(iss, data.maxplayers, '\0');
 
     getline(iss, temp, '\0');
     if( temp.compare("hostport") )
         throw runtime_error("Incorrect response from server, expected 'hostport'");
-    iss>> fdata->hostport;
+    iss>> data.hostport;
 
     iss.ignore(1);
     getline(iss, temp, '\0');
     if( temp.compare("hostip") )
         throw runtime_error("Incorrect response from server, expected 'hostip'");
-    getline(iss, fdata->hostip, '\0');
+    getline(iss, data.hostip, '\0');
 
     iss.ignore(2);
     getline(iss, temp, '\0');
@@ -229,7 +220,7 @@ void mcQuery::extractFull(istringstream& iss) {
     while(1) {
         iss.getline(&buf[0], 17, '\0');
         if( strlen(&buf[0]) )
-            fdata->playernames.push_back(buf);
+            data.playernames.push_back(buf);
         else break;
     } 
 }
