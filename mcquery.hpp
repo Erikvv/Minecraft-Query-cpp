@@ -2,7 +2,7 @@
 #include <array>
 #include <sstream>
 
-struct mcDataBasic {    // needs polymorphic destructor. Do i need to write one myself?
+struct mcDataBasic {
     bool succes = false;
     std::string motd;
     std::string gametype;
@@ -11,8 +11,6 @@ struct mcDataBasic {    // needs polymorphic destructor. Do i need to write one 
     std::string maxplayers;
     unsigned short hostport = 0;
     std::string hostip;
-
-    virtual void fake() {} // just so it becomes polymorphic
 };
 
 struct mcDataFull : mcDataBasic {

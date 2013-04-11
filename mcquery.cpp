@@ -2,10 +2,7 @@
 //#include <array>
 #include <functional>   // for bind
 #include <algorithm>    // std::equal
-#include <ostream>
-#include <streambuf>
 #include "mcquery.hpp"
-
 
 using namespace boost::asio::ip;
 using namespace boost::asio;
@@ -23,14 +20,12 @@ using uchar = unsigned char;
 using uint  = unsigned int;
 
 
-
 struct debuglog {
     template<typename T>
     debuglog& operator<< (T rhs) { 
         //cout<< rhs;
         return *this; 
     }
-    
 } debug;
 
 /******************
