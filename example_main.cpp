@@ -22,10 +22,49 @@ int main(int argc, char *argv[]) {
         case 2:
             hostname = argv[1];
     }
-    
-    mcQuery q{hostname, port, timeout}; // constructor arguments are optional, defaults are above
 
-    cout<< "basic query: " << endl;
+    /**************** Simple TCP Query *****************************************
+     *             
+     *  This works on every server
+     * 
+     *  constructor signature:                  
+     *  
+     *  mcQuerySimple(const char* host = "localhost",
+     *                const char* port = "25565",
+     *                const int timeoutsecs = 5);
+     *
+     *  throws if DNS resolve fails, other errors just make the request fail
+     *
+     ********************************************************************/
+    
+    mcQuerySimple qs{hostname, port, timeout};
+    auto sData = qs.get();
+    if(sData.success) {
+        cout<< "motd:       " << sData.motd << endl;
+        cout<< "numplayers: " << sData.numplayers << endl;
+        cout<< "maxplayers: " << sData.maxplayers << endl;
+        cout<< "version:    " << sData.version << endl;
+    }
+    else cout<< "no response from server" << endl;
+    cout<<endl;
+
+    /**************** UDP Query *****************************************
+     *             
+     *  The Minecraft server needs to have "enable-query=true" in server.properties
+     *
+     *  The full and basic UDP queries are done through the same object  
+     *  constructor signature:                  
+     *  
+     *  mcQuery(const char* host = "localhost",
+     *          const char* port = "25565",
+     *          const int timeoutsecs = 5);
+     *
+     *  throws if DNS resolve fails, other errors just make the request fail
+     *
+     ********************************************************************/
+    mcQuery q{hostname, port, timeout};
+
+    cout<< "Basic query: " << endl;
     auto data = q.getBasic(); 
     if(data.success) {
         cout<< "motd:       " << data.motd << endl;
@@ -59,16 +98,7 @@ int main(int argc, char *argv[]) {
     else cout<< "no response from server" << endl;
     cout<<endl;
 
-    mcQuerySimple qs{hostname, port, timeout};
-    auto sData = qs.get();
-    if(sData.success) {
-        cout<< "motd:       " << sData.motd << endl;
-        cout<< "numplayers: " << sData.numplayers << endl;
-        cout<< "maxplayers: " << sData.maxplayers << endl;
-        cout<< "version:    " << sData.version << endl;
-    }
-    else cout<< "no response from server" << endl;
-    cout<<endl;
+    
 
     return 0;
 }
