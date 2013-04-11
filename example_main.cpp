@@ -25,7 +25,8 @@ int main(int argc, char *argv[]) {
 
     /**************** Simple TCP Query *****************************************
      *             
-     *  This works on every server
+     *  This works with every Minecraft server, even if queries are disabled
+     *  Does not work on Minecraft 1.3 or earlier
      * 
      *  constructor signature:                  
      *  
@@ -52,7 +53,7 @@ int main(int argc, char *argv[]) {
      *             
      *  The Minecraft server needs to have "enable-query=true" in server.properties
      *
-     *  The full and basic UDP queries are done through the same object  
+     *  The full and basic UDP queries are done through the same object.  
      *  constructor signature:                  
      *  
      *  mcQuery(const char* host = "localhost",
@@ -62,6 +63,7 @@ int main(int argc, char *argv[]) {
      *  throws if DNS resolve fails, other errors just make the request fail
      *
      ********************************************************************/
+
     mcQuery q{hostname, port, timeout};
 
     cout<< "Basic query: " << endl;
@@ -92,8 +94,8 @@ int main(int argc, char *argv[]) {
         cout<< "hostport:   " << fData.hostport << endl;
         cout<< "hostip:     " << fData.hostip << endl;
         cout<< "playernames:" << endl;
-        for( auto str : fData.playernames )
-            cout<< "    " << &str[0] << endl;
+        for( auto name : fData.playernames )        // typeof(name) = array<char,17>
+            cout<< "    " << &name[0] << endl;
     }
     else cout<< "no response from server" << endl;
     cout<<endl;
