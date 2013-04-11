@@ -2,13 +2,20 @@
 #include <array>
 #include <sstream>
 
-struct mcDataBasic {
-    bool succes = false;
+struct mcData {
+    bool success = false;
     std::string motd;
-    std::string gametype;
-    std::string map;
     std::string numplayers;  // int seems better, but this is how we recieve it from minecraft
     std::string maxplayers;
+};
+
+struct mcDataSimple : mcData {
+    std::string version;
+};
+
+struct mcDataBasic : mcData {
+    std::string gametype;
+    std::string map;
     unsigned short hostport = 0;
     std::string hostip;
 };
@@ -42,11 +49,36 @@ private:    // data
     boost::asio::deadline_timer t;
     boost::asio::ip::udp::resolver Resolver;
     boost::asio::ip::udp::resolver::query Query;
-    boost::asio::ip::udp::socket Socket;
     boost::asio::ip::udp::endpoint Endpoint;
+    boost::asio::ip::udp::socket Socket;
 
-    int timeout;    // TODO: better data type
+    boost::posix_time::time_duration timeout;
     bool fullreq;
-    std::array<unsigned char,5000> recvBuffer;   // should look into making the buffer size variable, have to look in boost documentation
+    std::array<unsigned char,5000> recvBuffer;   // should look into making the buffer size variable, have to look at boost documentation
     mcDataFull data;
+};
+
+struct mcQuerySimple {
+    mcQuerySimple(const char* host = "localhost",
+            const char* port = "25565", 
+            const int timeoutsecs = 5);
+
+    mcDataSimple get();
+
+private:
+    void connector(const boost::system::error_code& error);
+    void sender(const boost::system::error_code& e, std::size_t numBytes);
+    void receiver(const boost::system::error_code& e, std::size_t numBytes);
+
+private:
+    boost::asio::io_service ioService;
+    boost::asio::deadline_timer t;
+    boost::asio::ip::tcp::resolver Resolver;
+    boost::asio::ip::tcp::resolver::query Query;
+    boost::asio::ip::tcp::endpoint Endpoint;
+    boost::asio::ip::tcp::socket Socket;
+    boost::posix_time::time_duration timeout;
+
+    std::array<unsigned char,100> recvBuffer;    
+    mcDataSimple data;
 };

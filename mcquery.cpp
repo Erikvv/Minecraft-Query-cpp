@@ -3,18 +3,14 @@
 #include <functional>   // for bind
 #include <algorithm>    // std::equal
 #include "mcquery.hpp"
+#include <iomanip> // remove this!
 
-using namespace boost::asio::ip;
 using namespace boost::asio;
 using namespace std::placeholders;
 using namespace std;
 
 using boost::posix_time::seconds;
 using boost::system::error_code;
-
-using endpoint   = udp::endpoint;
-using resolver   = udp::resolver;
-using udp_socket = udp::socket;
 
 using uchar = unsigned char;
 using uint  = unsigned int;
@@ -28,19 +24,20 @@ struct debuglog {
     }
 } debug;
 
-/******************
- *  definitions   *
- ******************/
+/*************************
+ *  mcQuery definitions  *
+ *************************/
+
 mcQuery::mcQuery(const char* host /* = "localhost" */, 
                  const char* port /* = "25565" */, 
                  const int timeoutsecs /* = 5 */)
     : ioService {}, 
       t {ioService},
       Resolver {ioService},
-      Socket {ioService},
       Query {host, port},
-      Endpoint {*Resolver.resolve(Query)},   // TODO: async
-      timeout{timeoutsecs}
+      Endpoint {*Resolver.resolve(Query)},   // has a good timeout of itself, so async probablye isnt necessary
+      Socket {ioService},                    // resolve() can throw
+      timeout {seconds(timeoutsecs)}         
 { }
 
 mcDataBasic mcQuery::getBasic() {
@@ -65,9 +62,9 @@ void mcQuery::connect() {
     size_t len = Socket.send_to(buffer(req), Endpoint);  // connectionless UDP: doesn't need to be async
     debug<< "sent " << len << " bytes" << '\n';
 
-    t.expires_from_now(seconds(timeout));
+    t.expires_from_now(timeout);
     t.async_wait(
-        [&](const boost::system::error_code& e) {
+        [&](const error_code& e) {
             if(e) return;
             debug<< "timed out: closing socket" << '\n';
             Socket.cancel(); // causes event handlers to be called with error code 125 (asio::error::operation_aborted)
@@ -130,7 +127,7 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
     iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size());
 
     extract(iss);
-    data.succes = true;
+    data.success = true;
 }
 
 void mcQuery::extract(istringstream& iss) {
@@ -222,4 +219,80 @@ void mcQuery::extractFull(istringstream& iss) {
     } 
 }
 
+/*******************************
+ *  mcQuerySimple definitions  *
+ *******************************/
 
+mcQuerySimple::mcQuerySimple(
+        const char* host /* = "localhost" */, 
+        const char* port /* = "25565" */, 
+        const int timeoutsecs /* = 5 */)
+    : ioService {},
+      t {ioService},
+      Resolver {ioService},
+      Query {host, port},
+      Endpoint {*Resolver.resolve(Query)},
+      Socket {ioService},
+      timeout {seconds(timeoutsecs)}
+{ }
+
+mcDataSimple mcQuerySimple::get() {
+    t.expires_from_now(timeout);
+    t.async_wait(
+        [&](const error_code& e) {
+            if(e) return;
+            debug<< "timed out: closing socket" << '\n';
+            Socket.cancel(); // causes event handlers to be called with error code 125 (asio::error::operation_aborted)
+        } );
+
+    cout<< "get\n";
+
+    Socket.async_connect(Endpoint, bind(&mcQuerySimple::connector, this, _1));
+
+    ioService.reset();
+    try { ioService.run(); } catch(exception& e) {
+        debug<< "Exception caught from ioService: " << e.what() << '\n';
+    }
+
+    return data;
+}
+
+void mcQuerySimple::connector(const error_code& e) {    // TODO: try totally different ordering
+    if(e) return;
+
+    uchar req[] = { 0xFE, 0x01 };
+
+    Socket.async_send(buffer(req), bind(&mcQuerySimple::sender, this, _1, _2));
+}
+
+void mcQuerySimple::sender(const error_code& e, size_t numBytes) {
+    if(e) return;
+
+    Socket.async_receive(buffer(recvBuffer), bind(&mcQuerySimple::receiver, this, _1, _2));    
+}
+
+void mcQuerySimple::receiver(const error_code& e, size_t numBytes) {    // does not work for mc 1.3 and earlier
+    t.cancel();
+    if(e) return;
+    debug<< "received " << numBytes << " bytes\n";
+
+    array<uchar,2> expected = { 0xFF, 0x00 };
+    if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
+        throw runtime_error("Incorrect response from server when recieving data");
+
+    // remove all even bytes (they're all zero)
+    for( int i=0; i<recvBuffer.size()/2; i++) {
+        recvBuffer[i] = recvBuffer[i*2];
+        recvBuffer[i*2] = '\0';
+    }
+
+    istringstream iss;
+    iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[8]), recvBuffer.size());
+
+    getline(iss, data.version, '\0');
+    getline(iss, data.motd, '\0');
+    getline(iss, data.numplayers, '\0');
+    getline(iss, data.maxplayers, '\0');
+    
+    data.success = true;
+}

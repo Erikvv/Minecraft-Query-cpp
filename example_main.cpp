@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 
     cout<< "basic query: " << endl;
     auto data = q.getBasic(); 
-    if(data.succes) {
+    if(data.success) {
         cout<< "motd:       " << data.motd << endl;
         cout<< "gametype:   " << data.gametype << endl;
         cout<< "map:        " << data.map << endl;
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     
     cout<< "Full query: " << endl;
     auto fData = q.getFull();
-    if(fData.succes) {
+    if(fData.success) {
         cout<< "motd:       " << fData.motd << endl;    // also accessable as data.hostname
         cout<< "gametype:   " << fData.gametype << endl;
         cout<< "game_id:    " << fData.game_id << endl;
@@ -55,6 +55,17 @@ int main(int argc, char *argv[]) {
         cout<< "playernames:" << endl;
         for( auto str : fData.playernames )
             cout<< "    " << &str[0] << endl;
+    }
+    else cout<< "no response from server" << endl;
+    cout<<endl;
+
+    mcQuerySimple qs{hostname, port, timeout};
+    auto sData = qs.get();
+    if(sData.success) {
+        cout<< "motd:       " << sData.motd << endl;
+        cout<< "numplayers: " << sData.numplayers << endl;
+        cout<< "maxplayers: " << sData.maxplayers << endl;
+        cout<< "version:    " << sData.version << endl;
     }
     else cout<< "no response from server" << endl;
     cout<<endl;
