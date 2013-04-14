@@ -34,8 +34,6 @@ int main(int argc, char *argv[]) {
      *                const char* port = "25565",
      *                const int timeoutsecs = 5);
      *
-     *  throws if DNS resolve fails, other errors just make the request fail
-     *
      ********************************************************************/
     
     mcQuerySimple qs{hostname, port, timeout};
@@ -46,7 +44,7 @@ int main(int argc, char *argv[]) {
         cout<< "maxplayers: " << sData.maxplayers << endl;
         cout<< "version:    " << sData.version << endl;
     }
-    else cout<< "no response from server" << endl;
+    else cout<< "error:      " << sData.error << endl;
     cout<<endl;
 
     /**************** UDP Query *****************************************
@@ -59,8 +57,6 @@ int main(int argc, char *argv[]) {
      *  mcQuery(const char* host = "localhost",
      *          const char* port = "25565",
      *          const int timeoutsecs = 5);
-     *
-     *  throws if DNS resolve fails, other errors just make the request fail
      *
      ********************************************************************/
 
@@ -77,7 +73,7 @@ int main(int argc, char *argv[]) {
         cout<< "hostport:   " << data.hostport << endl;
         cout<< "hostip:     " << data.hostip << endl;
     }
-    else cout<< "no response from server" << endl;
+    else cout<< "error:      " << data.error << endl;
     cout<<endl;
     
     cout<< "Full query: " << endl;
@@ -97,7 +93,7 @@ int main(int argc, char *argv[]) {
         for( auto name : fData.playernames )        // typeof(name) = array<char,17>
             cout<< "    " << &name[0] << endl;
     }
-    else cout<< "no response from server" << endl;
+    else cout<< "error:      " << fData.error << endl;
     cout<<endl;
 
     

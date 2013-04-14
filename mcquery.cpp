@@ -35,8 +35,7 @@ mcQuery::mcQuery(const char* host /* = "localhost" */,
       t {ioService},
       Resolver {ioService},
       Query {host, port},
-      Endpoint {*Resolver.resolve(Query)},   // has a good timeout of itself, so async probablye isnt necessary
-      Socket {ioService},                    // resolve() can throw
+      Socket {ioService},
       timeout {seconds(timeoutsecs)}         
 { }
 
@@ -54,28 +53,36 @@ mcDataFull mcQuery::getFull() {
 }
 
 void mcQuery::connect() {
-    Socket.connect(Endpoint);
-      // request for challenge token
-      //             [-magic--]  [type] [----session id------]
-    uchar req[] =  { 0xFE, 0xFD, 0x09,  0x01, 0x02, 0x03, 0x04 };
-    debug<< "sending..." << '\n';
-    size_t len = Socket.send_to(buffer(req), Endpoint);  // connectionless UDP: doesn't need to be async
-    debug<< "sent " << len << " bytes" << '\n';
-
     t.expires_from_now(timeout);
     t.async_wait(
         [&](const error_code& e) {
             if(e) return;
-            debug<< "timed out: closing socket" << '\n';
+            data.error = "User-defined timeout reached";
             Socket.cancel(); // causes event handlers to be called with error code 125 (asio::error::operation_aborted)
         } );
-    
-    debug<< "preparing recieve buffer" << '\n';
-    Socket.async_receive_from(buffer(recvBuffer), Endpoint, 
-        bind(&mcQuery::challengeReceiver, this, _1, _2));
+
+    try {
+        Endpoint = *Resolver.resolve(Query);    // has a good timeout of itself, so async probably isnt necessary
+        Socket.connect(Endpoint);
+          // request for challenge token
+          //             [-magic--]  [type] [----session id------]
+        uchar req[] =  { 0xFE, 0xFD, 0x09,  0x01, 0x02, 0x03, 0x04 };
+        debug<< "sending..." << '\n';
+        size_t len = Socket.send_to(buffer(req), Endpoint);  // connectionless UDP: doesn't need to be async
+        debug<< "sent " << len << " bytes" << '\n';
+        
+        debug<< "preparing recieve buffer" << '\n';
+        Socket.async_receive_from(buffer(recvBuffer), Endpoint, 
+            bind(&mcQuery::challengeReceiver, this, _1, _2));
+    } catch(exception& e) {
+        data.error = e.what();
+        debug<< "Exception caught when initiating connection: " << e.what() << '\n';
+        return;
+    }
 
     ioService.reset();
     try { ioService.run(); } catch(exception& e) {
+        data.error = e.what();
         debug<< "Exception caught from ioService: " << e.what() << '\n';
     }
 }
@@ -231,7 +238,6 @@ mcQuerySimple::mcQuerySimple(
       t {ioService},
       Resolver {ioService},
       Query {host, port},
-      Endpoint {*Resolver.resolve(Query)},
       Socket {ioService},
       timeout {seconds(timeoutsecs)}
 { }
@@ -241,11 +247,17 @@ mcDataSimple mcQuerySimple::get() {
     t.async_wait(
         [&](const error_code& e) {
             if(e) return;
-            debug<< "timed out: closing socket" << '\n';
+            data.error = "User-defined timeout reached";
             Socket.cancel(); // causes event handlers to be called with error code 125 (asio::error::operation_aborted)
         } );
-
-    cout<< "get\n";
+    
+    try {
+        Endpoint = *Resolver.resolve(Query);
+    } catch(exception& e) {
+        data.error = e.what();
+        debug<< "Exception caught when resolving: " << e.what() << '\n';
+        return data;
+    }
 
     Socket.async_connect(Endpoint, bind(&mcQuerySimple::connector, this, _1));
 
@@ -296,3 +308,4 @@ void mcQuerySimple::receiver(const error_code& e, size_t numBytes) {    // does 
     
     data.success = true;
 }
+

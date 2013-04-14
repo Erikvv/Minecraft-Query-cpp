@@ -3,7 +3,9 @@
 #include <sstream>
 
 struct mcData {
+
     bool success = false;
+    std::string error;
     std::string motd;
     std::string numplayers;  // int seems better, but this is how we recieve it from minecraft
     std::string maxplayers;
@@ -35,10 +37,11 @@ struct mcQuery {
 
     mcDataBasic getBasic();
     mcDataFull getFull();
-    void challengeReceiver(const boost::system::error_code& error, size_t nBytes);      // TODO: move these 2 functions to protected
-    void dataReceiver(const boost::system::error_code& error, size_t nBytes);
+    
 
 private:    // functions
+    void challengeReceiver(const boost::system::error_code& error, size_t nBytes);
+    void dataReceiver(const boost::system::error_code& error, size_t nBytes);
     void connect();
     void extract(std::istringstream& iss);
     void extractBasic(std::istringstream& iss);
