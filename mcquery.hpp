@@ -10,8 +10,8 @@ struct mcData {
     bool success = false;
     std::string error;  // contains the .what() string if an exception was thrown
     std::string motd;
-    std::string numplayers;  // int seems better, but this is how we recieve it from minecraft
-    std::string maxplayers;
+    int numplayers;
+    int maxplayers;
 };
 
 struct mcDataSimple : mcData {
@@ -29,19 +29,19 @@ struct mcDataFull : mcDataBasic {
     std::string& hostname = motd;   // same thing different name
     std::string game_id;
     std::string version;
-    std::string plugins;     // only used by bukkit: may need to become a vector of strings
+    std::string plugins;     // only used by bukkit: TODO: make vector of strings
     std::vector<std::array<char,17>> playernames;
 };
 
 struct mcDataSnoop {
-    int difficulty;      // int = data types tbd
+    int difficulty;      // data types tbd
     int modlist;
     int uptime;
     int worlborder;
     int tps;
 };
 
-struct playerInfo {
+struct mcDataPlayer {
     char name[17];
     int gamemode;
     int capabilities;
@@ -55,7 +55,7 @@ struct playerInfo {
     int pos;
 };
 
-struct playerInv {
+struct mcDataPlayerInv {
     char name[17];
     int head;
     int chest;

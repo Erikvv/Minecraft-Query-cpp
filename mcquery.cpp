@@ -142,8 +142,10 @@ void mcQuery::extractBasic() {
     getline(iss, data.motd, '\0');
     getline(iss, data.gametype, '\0');
     getline(iss, data.map, '\0');
-    getline(iss, data.numplayers, '\0');
-    getline(iss, data.maxplayers, '\0');
+    iss >> data.numplayers;
+    iss.ignore(1);
+    iss >> data.maxplayers;
+    iss.ignore(1);
     iss.readsome(reinterpret_cast<char*>(&data.hostport), sizeof(data.hostport));
     getline(iss, data.hostip, '\0');
 }
@@ -173,10 +175,12 @@ void mcQuery::extractFull() {
     getline(iss, data.map, '\0');
 
     extractKey("numplayers");
-    getline(iss, data.numplayers, '\0');
+    iss >> data.numplayers;
+    iss.ignore(1);
 
     extractKey("maxplayers");
-    getline(iss, data.maxplayers, '\0');
+    iss >> data.maxplayers;
+    iss.ignore(1);
 
     extractKey("hostport");
     iss>> data.hostport;
@@ -279,8 +283,9 @@ void mcQuerySimple::receiver(const error_code& e, size_t numBytes) {    // does 
 
     getline(iss, data.version, '\0');
     getline(iss, data.motd, '\0');
-    getline(iss, data.numplayers, '\0');
-    getline(iss, data.maxplayers, '\0');
+    iss >> data.numplayers;
+    iss.ignore(1);
+    iss >> data.maxplayers;
     
     data.success = true;
 }
