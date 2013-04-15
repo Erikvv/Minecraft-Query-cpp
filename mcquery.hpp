@@ -55,7 +55,7 @@ struct mcDataPlayer {
     int pos;
 };
 
-struct mcDataPlayerInv {
+struct mcDataInv {
     char name[17];
     int head;
     int chest;
@@ -131,13 +131,20 @@ private:
 };
 
 /********************************
- *  mcQuerySimple declarations  *
+ *  mcSnooper declarations      *
  ********************************/
-// not implemented yet
+// not implemented yet --> waiting on upstream fixes
 struct mcSnooper {
     mcSnooper(const char* host = "localhost",
-            const char* port = "25565", 
+            const char* port = "25566",     // default is one port higher than minecraft host
             const int timeoutsecs = 5);
+
+    mcDataSnoop get();
+    mcDataPlayer getPlayer(const char* name);
+    mcDataInv getInventory(const char* name);
+
+private:
+
 
 private:
     boost::asio::io_service ioService;
