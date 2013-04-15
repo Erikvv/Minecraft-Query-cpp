@@ -3,9 +3,8 @@
 #include <sstream>
 
 struct mcData {
-
     bool success = false;
-    std::string error;
+    std::string error;  // contains the .what() string if an exception was thrown
     std::string motd;
     std::string numplayers;  // int seems better, but this is how we recieve it from minecraft
     std::string maxplayers;
@@ -43,9 +42,10 @@ private:    // functions
     void challengeReceiver(const boost::system::error_code& error, size_t nBytes);
     void dataReceiver(const boost::system::error_code& error, size_t nBytes);
     void connect();
-    void extract(std::istringstream& iss);
-    void extractBasic(std::istringstream& iss);
-    void extractFull(std::istringstream& iss);
+    void extract();
+    void extractBasic();
+    void extractFull();
+    void extractKey(const char* expected);
 
 private:    // data
     boost::asio::io_service ioService;
@@ -54,6 +54,7 @@ private:    // data
     boost::asio::ip::udp::resolver::query Query;
     boost::asio::ip::udp::endpoint Endpoint;
     boost::asio::ip::udp::socket Socket;
+    std::istringstream iss;
 
     boost::posix_time::time_duration timeout;
     bool fullreq;

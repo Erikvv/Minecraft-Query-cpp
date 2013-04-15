@@ -53,6 +53,8 @@ mcDataFull mcQuery::getFull() {
 }
 
 void mcQuery::connect() {
+    data.success = false;
+
     t.expires_from_now(timeout);
     t.async_wait(
         [&](const error_code& e) {
@@ -74,16 +76,11 @@ void mcQuery::connect() {
         debug<< "preparing recieve buffer" << '\n';
         Socket.async_receive_from(buffer(recvBuffer), Endpoint, 
             bind(&mcQuery::challengeReceiver, this, _1, _2));
+
+        ioService.reset();
+        ioService.run(); 
     } catch(exception& e) {
         data.error = e.what();
-        debug<< "Exception caught when initiating connection: " << e.what() << '\n';
-        return;
-    }
-
-    ioService.reset();
-    try { ioService.run(); } catch(exception& e) {
-        data.error = e.what();
-        debug<< "Exception caught from ioService: " << e.what() << '\n';
     }
 }
 
@@ -95,7 +92,7 @@ void mcQuery::challengeReceiver(const error_code& error, size_t nBytes) {
     // These bytes don't hold usefull info, but we check if they are correct anyways
     const array<uchar,5> expected = { 0x09, 0x01, 0x02, 0x03, 0x04 };
     if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
-        throw runtime_error("Incorrect response from server when recieving data");
+        throw runtime_error("Incorrect response from server when recieving challenge token");
 
     // byte 5 onwards is the challange token: a null-terminated ASCII number string which should be sent back as a 32-bit integer
     uint challtoken = atoi((char*)&recvBuffer[5]); 
@@ -130,19 +127,18 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
         throw runtime_error("Incorrect response from server when recieving data");
 
     // tokenize answer into mcData struct
-    istringstream iss;
     iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size());
 
-    extract(iss);
-    data.success = true;
+    extract();
+    data.success = true;    // the only place where this flag can be set to true
 }
 
-void mcQuery::extract(istringstream& iss) {
-    if( fullreq ) extractFull(iss);
-    else extractBasic(iss);
+void mcQuery::extract() {
+    if( fullreq ) extractFull();
+    else extractBasic();
 }
 
-void mcQuery::extractBasic(istringstream& iss) {
+void mcQuery::extractBasic() {
     getline(iss, data.motd, '\0');
     getline(iss, data.gametype, '\0');
     getline(iss, data.map, '\0');
@@ -151,70 +147,46 @@ void mcQuery::extractBasic(istringstream& iss) {
     iss.readsome(reinterpret_cast<char*>(&data.hostport), sizeof(data.hostport));
     getline(iss, data.hostip, '\0');
 }
-void mcQuery::extractFull(istringstream& iss) {
+
+void mcQuery::extractFull() {
     string temp;
 
-    getline(iss, temp, '\0');
-    if( temp.compare("splitnum") )
-        throw runtime_error("Incorrect response from server, expected 'splitnum'");
+    extractKey("splitnum");
 
     iss.ignore(2);
-    getline(iss, temp, '\0');
-    if( temp.compare("hostname") )
-        throw runtime_error("Incorrect response from server, expected 'hostname'");
-
+    extractKey("hostname");
     getline(iss, data.motd, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("gametype") )
-        throw runtime_error("Incorrect response from server, expected 'gametype'");
+    extractKey("gametype");
     getline(iss, data.gametype, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("game_id") )
-        throw runtime_error("Incorrect response from server, expected 'game_id'");
+    extractKey("game_id");
     getline(iss, data.game_id, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("version") )
-        throw runtime_error("Incorrect response from server, expected 'version'");
+    extractKey("version");
     getline(iss, data.version, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("plugins") )
-        throw runtime_error("Incorrect response from server, expected 'plugins'");
+    extractKey("plugins");
     getline(iss, data.plugins, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("map") )
-        throw runtime_error("Incorrect response from server, expected 'map'");
+    extractKey("map");
     getline(iss, data.map, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("numplayers") )
-        throw runtime_error("Incorrect response from server, expected 'numplayers'");
+    extractKey("numplayers");
     getline(iss, data.numplayers, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("maxplayers") )
-        throw runtime_error("Incorrect response from server, expected 'maxplayers'");
+    extractKey("maxplayers");
     getline(iss, data.maxplayers, '\0');
 
-    getline(iss, temp, '\0');
-    if( temp.compare("hostport") )
-        throw runtime_error("Incorrect response from server, expected 'hostport'");
+    extractKey("hostport");
     iss>> data.hostport;
 
     iss.ignore(1);
-    getline(iss, temp, '\0');
-    if( temp.compare("hostip") )
-        throw runtime_error("Incorrect response from server, expected 'hostip'");
+    extractKey("hostip");
     getline(iss, data.hostip, '\0');
 
     iss.ignore(2);
-    getline(iss, temp, '\0');
-    if( temp.compare("player_") )
-        throw runtime_error("Incorrect response from server, expected 'player_'");
+    extractKey("player_");
 
     iss.ignore(1);
     array<char,17> buf;
@@ -225,6 +197,14 @@ void mcQuery::extractFull(istringstream& iss) {
         else break;
     } 
 }
+
+void mcQuery::extractKey(const char* expected) {
+    string temp;
+    getline(iss, temp, '\0');
+    if( temp.compare(expected) )
+        throw runtime_error("Unexpected key found in server data");
+}
+
 
 /*******************************
  *  mcQuerySimple definitions  *
@@ -253,17 +233,13 @@ mcDataSimple mcQuerySimple::get() {
     
     try {
         Endpoint = *Resolver.resolve(Query);
+   
+        Socket.async_connect(Endpoint, bind(&mcQuerySimple::connector, this, _1));
+
+        ioService.reset();
+        ioService.run(); 
     } catch(exception& e) {
         data.error = e.what();
-        debug<< "Exception caught when resolving: " << e.what() << '\n';
-        return data;
-    }
-
-    Socket.async_connect(Endpoint, bind(&mcQuerySimple::connector, this, _1));
-
-    ioService.reset();
-    try { ioService.run(); } catch(exception& e) {
-        debug<< "Exception caught from ioService: " << e.what() << '\n';
     }
 
     return data;
@@ -292,7 +268,7 @@ void mcQuerySimple::receiver(const error_code& e, size_t numBytes) {    // does 
     if( !equal(expected.begin(), expected.end(), recvBuffer.begin()) )
         throw runtime_error("Incorrect response from server when recieving data");
 
-    // remove all even bytes (they're all zero)
+    // remove all uneven indexed bytes (they're all zero)
     for( int i=0; i<recvBuffer.size()/2; i++) {
         recvBuffer[i] = recvBuffer[i*2];
         recvBuffer[i*2] = '\0';
