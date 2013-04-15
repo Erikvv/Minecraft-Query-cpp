@@ -83,7 +83,9 @@ int main(int argc, char *argv[]) {
         cout<< "gametype:   " << fData.gametype << endl;
         cout<< "game_id:    " << fData.game_id << endl;
         cout<< "version:    " << fData.version << endl;
-        cout<< "plugins:    " << fData.plugins << endl; // only used by bukkit
+        cout<< "plugins:" << endl;         // only used by bukkit. First member is the craftbukkit version
+        for( auto plugin : fData.plugins )
+            cout<< "    " << plugin << endl;
         cout<< "map:        " << fData.map << endl;
         cout<< "numplayers: " << fData.numplayers << endl;
         cout<< "maxplayers: " << fData.maxplayers << endl;

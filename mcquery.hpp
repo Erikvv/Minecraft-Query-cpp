@@ -29,8 +29,8 @@ struct mcDataFull : mcDataBasic {
     std::string& hostname = motd;   // same thing different name
     std::string game_id;
     std::string version;
-    std::string plugins;     // only used by bukkit: TODO: make vector of strings
-    std::vector<std::array<char,17>> playernames;
+    std::vector<std::string> plugins;     // only used by bukkit
+    std::vector<std::string> playernames; // a name is max 16 chars, so a fixed-length string type would be more appropriate
 };
 
 struct mcDataSnoop {

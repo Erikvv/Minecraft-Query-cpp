@@ -28,6 +28,9 @@ struct debuglog {
  *  mcQuery definitions  *
  *************************/
 
+// non-class helper function;
+vector<string> extractPlugins(string raw);
+
 mcQuery::mcQuery(const char* host /* = "localhost" */, 
                  const char* port /* = "25565" */, 
                  const int timeoutsecs /* = 5 */)
@@ -151,8 +154,6 @@ void mcQuery::extractBasic() {
 }
 
 void mcQuery::extractFull() {
-    string temp;
-
     extractKey("splitnum");
 
     iss.ignore(2);
@@ -169,7 +170,9 @@ void mcQuery::extractFull() {
     getline(iss, data.version, '\0');
 
     extractKey("plugins");
-    getline(iss, data.plugins, '\0');
+    string rawPlugins;
+    getline(iss, rawPlugins, '\0');
+    data.plugins = extractPlugins(rawPlugins);
 
     extractKey("map");
     getline(iss, data.map, '\0');
@@ -183,22 +186,20 @@ void mcQuery::extractFull() {
     iss.ignore(1);
 
     extractKey("hostport");
-    iss>> data.hostport;
-
+    iss >> data.hostport;
     iss.ignore(1);
+
     extractKey("hostip");
     getline(iss, data.hostip, '\0');
-
     iss.ignore(2);
-    extractKey("player_");
 
+    extractKey("player_");
     iss.ignore(1);
-    array<char,17> buf;
-    while(1) {
-        iss.getline(&buf[0], 17, '\0');
-        if( strlen(&buf[0]) )
-            data.playernames.push_back(buf);
-        else break;
+
+    string name;
+    while( iss.good() && iss.peek()!='\0' ) {
+        getline(iss, name, '\0');
+        data.playernames.push_back(name);
     } 
 }
 
@@ -209,6 +210,23 @@ void mcQuery::extractKey(const char* expected) {
         throw runtime_error("Unexpected key found in server data");
 }
 
+vector<string> extractPlugins(string raw) {
+    vector<string> vs;
+    if( !raw.size() )
+        return vs;
+    istringstream pss(raw);
+    string temp;
+    getline(pss, temp, ':'); // craftbukkit description
+    vs.push_back(temp);
+
+    while( pss.good() ) {
+        pss.ignore(1); // whitespace
+        getline(pss, temp, ';');    // plugin name
+        vs.push_back(temp);
+    }
+
+    return vs;
+}
 
 /*******************************
  *  mcQuerySimple definitions  *
