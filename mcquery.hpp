@@ -2,6 +2,10 @@
 #include <array>
 #include <sstream>
 
+/*******************************
+ *  mcData declarations        *
+ *******************************/
+
 struct mcData {
     bool success = false;
     std::string error;  // contains the .what() string if an exception was thrown
@@ -28,6 +32,41 @@ struct mcDataFull : mcDataBasic {
     std::string plugins;     // only used by bukkit: may need to become a vector of strings
     std::vector<std::array<char,17>> playernames;
 };
+
+struct mcDataSnoop {
+    int difficulty;      // int = data types tbd
+    int modlist;
+    int uptime;
+    int worlborder;
+    int tps;
+};
+
+struct playerInfo {
+    char name[17];
+    int gamemode;
+    int capabilities;
+    int armor;
+    int xp;
+    int group;
+    int health;
+    int food;
+    int ping;
+    int money;
+    int pos;
+};
+
+struct playerInv {
+    char name[17];
+    int head;
+    int chest;
+    int legs;
+    int feet;
+    int inv;
+};
+
+/*******************************
+ *  mcQuery declarations       *
+ *******************************/
 
 struct mcQuery {
     mcQuery(const char* host = "localhost",     // move arguments away from constructor?
@@ -62,6 +101,10 @@ private:    // data
     mcDataFull data;
 };
 
+/********************************
+ *  mcQuerySimple declarations  *
+ ********************************/
+
 struct mcQuerySimple {
     mcQuerySimple(const char* host = "localhost",
             const char* port = "25565", 
@@ -85,4 +128,23 @@ private:
 
     std::array<unsigned char,100> recvBuffer;    
     mcDataSimple data;
+};
+
+/********************************
+ *  mcQuerySimple declarations  *
+ ********************************/
+// not implemented yet
+struct mcSnooper {
+    mcSnooper(const char* host = "localhost",
+            const char* port = "25565", 
+            const int timeoutsecs = 5);
+
+private:
+    boost::asio::io_service ioService;
+    boost::asio::deadline_timer t;
+    boost::asio::ip::tcp::resolver Resolver;
+    boost::asio::ip::tcp::resolver::query Query;
+    boost::asio::ip::tcp::endpoint Endpoint;
+    boost::asio::ip::tcp::socket Socket;
+    boost::posix_time::time_duration timeout;
 };
