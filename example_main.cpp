@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
         cout<< "hostport:   " << fData.hostport << endl;
         cout<< "hostip:     " << fData.hostip << endl;
         cout<< "playernames:" << endl;
-        for( auto name : fData.playernames )        // typeof(name) = array<char,17>
+        for( auto name : fData.playernames )
             cout<< "    " << name << endl;
     }
     else cout<< "error:      " << fData.error << endl;

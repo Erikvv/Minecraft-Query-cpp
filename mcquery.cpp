@@ -130,7 +130,7 @@ void mcQuery::dataReceiver(const boost::system::error_code& error, size_t nBytes
         throw runtime_error("Incorrect response from server when recieving data");
 
     // tokenize answer into mcData struct
-    iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size());
+    iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[5]), recvBuffer.size()-5);
 
     extract();
     data.success = true;    // the only place where this flag can be set to true
@@ -245,6 +245,8 @@ mcQuerySimple::mcQuerySimple(
 { }
 
 mcDataSimple mcQuerySimple::get() {
+    data.success = false;
+
     t.expires_from_now(timeout);
     t.async_wait(
         [&](const error_code& e) {
@@ -297,7 +299,7 @@ void mcQuerySimple::receiver(const error_code& e, size_t numBytes) {    // does 
     }
 
     istringstream iss;
-    iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[8]), recvBuffer.size());
+    iss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&recvBuffer[8]), recvBuffer.size()-8);
 
     getline(iss, data.version, '\0');
     getline(iss, data.motd, '\0');
