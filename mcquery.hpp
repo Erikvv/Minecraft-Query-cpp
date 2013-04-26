@@ -2,39 +2,60 @@
 #include <array>
 #include <sstream>
 
+// we don't wanna pollute the global namespace
+namespace mcq {
+
+using namespace std;
+using namespace boost::asio;
+using namespace boost::asio::ip;
+using boost::system::error_code;
+
 /*******************************
- *  mcData declarations        *
+ *  DECLARATIONS               *
  *******************************/
 
-struct mcData {
+    /*******************************
+     *  mcData                     *
+     *******************************/
+
+// base class: not instantiated
+struct data {
+    data(const char* host, unsigned short port);
+    
     bool success = false;
-    std::string error;  // contains the .what() string if an exception was thrown
-    std::string motd;
+
+    // inputs
+    string inputName;
+    unsigned short inputPort;
+
+    // all other data types are output, also in derived
+    string error;  // contains the .what() string if an exception was thrown
+    string motd;
     int numplayers;
     int maxplayers;
 };
 
-struct mcDataSimple : mcData {
-    std::string version;
+struct dataListping : data {
+    string version;
 };
 
-struct mcDataBasic : mcData {
-    std::string gametype;
-    std::string map;
+struct dataBasic : data {
+    string gametype;
+    string map;
     unsigned short hostport = 0;
-    std::string hostip;
+    string hostip;
 };
 
-struct mcDataFull : mcDataBasic {
-    std::string& hostname = motd;   // same thing different name
-    std::string game_id;
-    std::string version;
-    std::vector<std::string> plugins;     // only used by bukkit
-    std::vector<std::string> playernames; // a name is max 16 chars, so a fixed-length string type would be more appropriate
+struct dataFull : dataBasic {
+    string& hostname = motd;   // same thing different name
+    string game_id;
+    string version;
+    vector<string> plugins;     // only used by bukkit
+    vector<string> playernames; // a name is max 16 chars, so a fixed-length string type would be more appropriate
 };
 
-struct mcDataSnoop {
-    int difficulty;      // data types tbd
+struct mcDataSnoop {    // snooper not implemented: waiting on upstream fixes
+    int difficulty;     // data types tbd
     int modlist;
     int uptime;
     int worlborder;
@@ -64,94 +85,163 @@ struct mcDataInv {
     int inv;
 };
 
-/*******************************
- *  mcQuery declarations       *
- *******************************/
 
-struct mcQuery {
-    mcQuery(const char* host = "localhost",     // move arguments away from constructor?
-            const char* port = "25565", 
-            const int timeoutsecs = 5);
+    /*******************************
+     *  traits object               *
+     *******************************/
 
-    mcDataBasic getBasic();
-    mcDataFull getFull();
-    
+template<typename DATA> 
+struct queryTraits;
+
+    /*******************************
+     *  helper                     *
+     *******************************/
+
+template<typename DATA>
+struct temporaries;
+
+    /*******************************
+     *  query object               *
+     *******************************/
+
+template<typename DATA>
+struct genericQuery {
+    using protocol = typename queryTraits<DATA>::protocol;
+    using socket   = typename protocol::socket;
+    using endpoint = typename protocol::endpoint;
+    using resolver = typename protocol::resolver;
+
+    // constructor
+    explicit genericQuery(const int timeoutsecs = 5);
+
+    // public interfaces
+    // could use future instead of shared_ptr for thread safety
+    shared_ptr<DATA> add(const char* host, unsigned short port = 25565);
+    void run();
+
 
 private:    // functions
-    void challengeReceiver(const boost::system::error_code& error, size_t nBytes);
-    void dataReceiver(const boost::system::error_code& error, size_t nBytes);
-    void connect();
-    void extract();
-    void extractBasic();
-    void extractFull();
-    void extractKey(const char* expected);
+    void stepResolve();
 
 private:    // data
     boost::asio::io_service ioService;
     boost::asio::deadline_timer t;
-    boost::asio::ip::udp::resolver Resolver;
-    boost::asio::ip::udp::resolver::query Query;
-    boost::asio::ip::udp::endpoint Endpoint;
-    boost::asio::ip::udp::socket Socket;
-    std::istringstream iss;
+    istringstream iss; // dunno if this should be a member
 
     boost::posix_time::time_duration timeout;
-    bool fullreq;
-    std::array<unsigned char,5000> recvBuffer;   // should look into making the buffer size variable, have to look at boost documentation
-    mcDataFull data;
+    array<unsigned char,5000> recvBuffer;   // should look into making the buffer size variable, have to look at boost documentation
+    vector<shared_ptr<DATA>> vData;
+    vector<temporaries<DATA>> vTemp;
 };
 
-/********************************
- *  mcQuerySimple declarations  *
- ********************************/
+/*******************************
+ *  DEFINITIONS                *
+ *******************************/
 
-struct mcQuerySimple {
-    mcQuerySimple(const char* host = "localhost",
-            const char* port = "25565", 
-            const int timeoutsecs = 5);
+    /*******************************
+     *  helper container: cleared after every run *
+     *******************************/
 
-    mcDataSimple get();
+template<typename DATA>
+struct temporaries {
+    using protocol = typename queryTraits<DATA>::protocol;
+    using socket   = typename protocol::socket;
+    using endpoint = typename protocol::endpoint;
+    using resolver = typename protocol::resolver;
+    using resQuery = typename resolver::query;
+    using resIterator = typename resolver::iterator;
 
-private:
-    void connector(const boost::system::error_code& error);
-    void sender(const boost::system::error_code& e, std::size_t numBytes);
-    void receiver(const boost::system::error_code& e, std::size_t numBytes);
+    temporaries(shared_ptr<DATA>& d, io_service io) 
+        : Socket{io},
+          Resolver{io},
+          data{d}
+    { }
 
-private:
-    boost::asio::io_service ioService;
-    boost::asio::deadline_timer t;
-    boost::asio::ip::tcp::resolver Resolver;
-    boost::asio::ip::tcp::resolver::query Query;
-    boost::asio::ip::tcp::endpoint Endpoint;
-    boost::asio::ip::tcp::socket Socket;
-    boost::posix_time::time_duration timeout;
+    void startEvent() {
+        resQuery q{data->inputName, to_string(data->inputPort)};
+        Resolver.async_resolve(q, [](error_code ec, resIterator it)
+                { cout<< "ai"; });
 
-    std::array<unsigned char,100> recvBuffer;    
-    mcDataSimple data;
+    }
+
+
+    weak_ptr<DATA> data;
+    socket Socket;
+    endpoint Endpoint;
+    resolver Resolver;
+};
+    
+
+    /*******************************
+     *  traits object               *
+     *******************************/
+
+// no default implementation of queryTraits
+template<> 
+struct queryTraits<dataListping> 
+{
+    using protocol = tcp;
+};
+template<>
+struct queryTraits<dataBasic>
+{
+    using protocol = udp;
+};
+template<>
+struct queryTraits<dataFull>
+{
+    using protocol = udp;
+    
 };
 
-/********************************
- *  mcSnooper declarations      *
- ********************************/
-// not implemented yet --> waiting on upstream fixes
-struct mcSnooper {
-    mcSnooper(const char* host = "localhost",
-            const char* port = "25566",     // default is one port higher than minecraft host
-            const int timeoutsecs = 5);
+    /*******************************
+     *  data object               *
+     *******************************/
 
-    mcDataSnoop get();
-    mcDataPlayer getPlayer(const char* name);
-    mcDataInv getInventory(const char* name);
+data::data(const char* host, unsigned short port) 
+      : inputName {host},
+        inputPort {port}
+{ }
 
-private:
+    /*******************************
+     *  query object               *
+     *******************************/
+
+template<typename DATA>
+genericQuery<DATA>::genericQuery(const int timeoutsecs /* =5 */ ) 
+    : ioService {}, 
+      t {ioService},
+      timeout {boost::posix_time::seconds(timeoutsecs)}
+{ }
+
+template<typename DATA>
+shared_ptr<DATA> genericQuery<DATA>::add(const char* host, ushort port /* =25565 */) 
+{
+    auto temp = std::make_shared<DATA>(host, port);
+    vData.push_back(temp);
+    return temp;
+}
+
+template<typename DATA>
+void genericQuery<DATA>::run() {
+    stepResolve();
+
+    ioService.run();
+}
+
+template<typename DATA>
+void genericQuery<DATA>::stepResolve() {
+    auto curData = vData[0];
+    //resolver::query(cur
+}
 
 
-private:
-    boost::asio::io_service ioService;
-    boost::asio::deadline_timer t;
-    boost::asio::ip::tcp::resolver Resolver;
-    boost::asio::ip::tcp::resolver::query Query;
-    boost::asio::ip::tcp::endpoint Endpoint;
-    boost::asio::ip::tcp::socket Socket;
-    boost::posix_time::time_duration timeout;
-};
+
+
+
+
+
+
+}   // end of internal namespace
+
+// pull everything the user needs into the global namespace
